@@ -1,41 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>View-Only PDF</title>
+  <title>Continuous PDF Viewer with History Navigation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
   <style>
-    html, body {
+    body {
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      height: 100%;
+      background: #f4f4f4;
+      font-family: Arial, sans-serif;
     }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
+    /* Fixed toolbar to show current page number */
+    #toolbar {
+      background: #333;
+      color: #fff;
+      padding: 10px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      text-align: center;
+    }
+    /* Container for the PDF pages */
+    #pdf-container {
+      margin: 60px auto 0; /* leave room for toolbar */
+      width: 80%;
+      max-width: 900px;
+    }
+    /* Each rendered page */
+    .page-container {
+      margin: 20px 0;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
     }
   </style>
+</head>
+<body>
+  <div id="toolbar">
+    <span id="page-indicator">Page: 1</span>
+  </div>
+  <div id="pdf-container"></div>
+
   <script>
-    // Disable right-click context menu
-    document.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
-    });
-    
-    // Disable some key combinations for printing, saving, copying, or viewing source
-    document.addEventListener('keydown', function(e) {
-      // Common shortcuts: Ctrl+P, Ctrl+S, Ctrl+C, Ctrl+U and F12 (DevTools)
-      if (e.ctrlKey && (e.key === 'p' || e.key === 's' || e.key === 'c' || e.key === 'u')) {
-        e.preventDefault();
+    // Set the path to your PDF file
+    const url = 'compressed_dataanalytics.pdf'; // Replace with your PDF file
+
+    const pdfContainer = document.getElementById('pdf-container');
+    const pageIndicator = document.getElementById('page-indicator');
+    let pdfDoc = null;
+    let totalPages = 0;
+
+    // Load the PDF document using pdf.js
+    pdfjsLib.getDocument(url).promise.then(pdf => {
+      pdfDoc = pdf;
+      totalPages = pdf.numPages;
+
+      // Render every page of the PDF
+      for (let i = 1; i <= totalPages; i++) {
+        renderPage(i);
       }
-      if (e.key === 'F12') {
-        e.preventDefault();
+      
+      // Once pages are rendered, set up observer to update URL as pages become visible
+      setupObserver();
+
+      // On initial load, if a page number is specified in the URL, scroll to it.
+      const params = new URLSearchParams(window.location.search);
+      const pageParam = parseInt(params.get('page'));
+      if(pageParam && pageParam >= 1 && pageParam <= totalPages) {
+        scrollToPage(pageParam);
+      }
+    });
+
+    // Render a single page into its own container
+    function renderPage(pageNum) {
+      pdfDoc.getPage(pageNum).then(page => {
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        page.render(renderContext);
+
+        // Create a container div for this page
+        const container = document.createElement('div');
+        container.className = 'page-container';
+        container.id = 'page-container-' + pageNum;
+        container.setAttribute('data-page', pageNum);
+        container.appendChild(canvas);
+        pdfContainer.appendChild(container);
+      });
+    }
+
+    // Set up IntersectionObserver to detect which page is currently in view
+    function setupObserver() {
+      const options = {
+        root: null, // viewport
+        rootMargin: '0px',
+        threshold: 0.5 // at least 50% of the page is visible
+      };
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const pageNum = entry.target.getAttribute('data-page');
+            pageIndicator.textContent = 'Page: ' + pageNum;
+            // Update URL state without adding extra history entries repeatedly
+            history.replaceState({ page: pageNum }, '', '?page=' + pageNum);
+          }
+        });
+      }, options);
+      
+      // Observe each page container
+      const pageContainers = document.querySelectorAll('.page-container');
+      pageContainers.forEach(container => observer.observe(container));
+    }
+
+    // Scroll smoothly to a specified page number
+    function scrollToPage(pageNum) {
+      const container = document.getElementById('page-container-' + pageNum);
+      if (container) {
+        container.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // Listen for browser back/forward navigation
+    window.addEventListener('popstate', function(event) {
+      if (event.state && event.state.page) {
+        scrollToPage(event.state.page);
       }
     });
   </script>
-</head>
-<body>
-  <!-- Append parameters to disable toolbar, navigation panes, and scrollbars -->
-  <iframe src="compressed_dataanalytics.pdf#toolbar=0&navpanes=0&scrollbar=0"></iframe>
 </body>
 </html>
