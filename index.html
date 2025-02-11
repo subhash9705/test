@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>View-Only PDF</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+  <script>
+    // Disable right-click context menu
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+    
+    // Disable some key combinations for printing, saving, copying, or viewing source
+    document.addEventListener('keydown', function(e) {
+      // Common shortcuts: Ctrl+P, Ctrl+S, Ctrl+C, Ctrl+U and F12 (DevTools)
+      if (e.ctrlKey && (e.key === 'p' || e.key === 's' || e.key === 'c' || e.key === 'u')) {
+        e.preventDefault();
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+    });
+  </script>
+</head>
+<body>
+  <!-- Append parameters to disable toolbar, navigation panes, and scrollbars -->
+  <iframe src="intro.pdf#toolbar=0&navpanes=0&scrollbar=0"></iframe>
+</body>
+</html>
